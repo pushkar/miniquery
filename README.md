@@ -33,3 +33,10 @@ cmake --build build
 
 Total sales (region = 'US'): 420
 ```
+
+## Todo
+
+- Integrate Apache Arrow Compute kernels for filter/projection
+- Implement partition-aware reading
+- Build a query planner module
+- Optimize with SIMD or multithreading

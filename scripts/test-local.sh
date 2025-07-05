@@ -14,11 +14,11 @@ fi
 # Generate test data
 echo "📊 Generating test data..."
 cd data
-if ! python -c "import pyarrow" 2>/dev/null; then
+if ! python3 -c "import pyarrow" 2>/dev/null; then
     echo "⚠️  pyarrow not found. Installing..."
-    pip install pyarrow
+    pip3 install pyarrow
 fi
-python generate_arrow_data.py
+python3 generate_arrow_data.py
 cd ..
 
 # Build main project

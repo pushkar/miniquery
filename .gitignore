@@ -52,5 +52,9 @@ venv/
 
 # data
 *.arrow
+.cache
 
 compile_commands.json
+
+# playground
+playground/ipc_scan

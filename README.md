@@ -18,8 +18,18 @@ A tiny, fast, Photon-style query engine built in C++ using Apache Arrow.
 
 ## 📂 Example Query
 
+Generate data
+```
+bash
+cd data
+pip install pyarrow
+python generate_arrow_data.py
+```
+
+Run the query engine
 ```bash
-./neutrino data/transactions.arrow "SELECT sales WHERE region = 'US'"
+cmake --build build
+./build/neutrino ./data/transactions.arrow "SELECT sales WHERE region = 'US'"
 
 Total sales (region = 'US'): 420
 ```

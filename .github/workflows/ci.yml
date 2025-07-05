@@ -1,0 +1,174 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        compiler: [gcc, clang]
+        exclude:
+          # macOS doesn't have gcc by default, use clang instead
+          - os: macos-latest
+            compiler: gcc
+
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install dependencies (Ubuntu)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential cmake pkg-config
+        # Install Arrow via conda for better compatibility
+        wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh
+        bash miniconda.sh -b -p $HOME/miniconda
+        echo "$HOME/miniconda/bin" >> $GITHUB_PATH
+        conda install -c conda-forge arrow-cpp
+
+    - name: Install dependencies (macOS)
+      if: matrix.os == 'macos-latest'
+      run: |
+        brew install cmake pkg-config
+        # Install Arrow via conda for better compatibility
+        wget https://repo.anaconda.com/miniconda/Miniconda3-latest-MacOSX-x86_64.sh -O miniconda.sh
+        bash miniconda.sh -b -p $HOME/miniconda
+        echo "$HOME/miniconda/bin" >> $GITHUB_PATH
+        conda install -c conda-forge arrow-cpp
+
+    - name: Set compiler (Ubuntu)
+      if: matrix.os == 'ubuntu-latest' && matrix.compiler == 'clang'
+      run: |
+        sudo apt-get install -y clang
+        echo "CC=clang" >> $GITHUB_ENV
+        echo "CXX=clang++" >> $GITHUB_ENV
+
+    - name: Set compiler (macOS)
+      if: matrix.os == 'macos-latest'
+      run: |
+        echo "CC=clang" >> $GITHUB_ENV
+        echo "CXX=clang++" >> $GITHUB_ENV
+
+    - name: Generate test data
+      run: |
+        cd data
+        pip install pyarrow
+        python generate_arrow_data.py
+
+    - name: Build main project (CMake)
+      run: |
+        mkdir -p build
+        cd build
+        cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=ON ..
+        make -j$(nproc)
+
+    - name: Test main project
+      run: |
+        cd build
+        ./neutrino ../data/transactions.arrow "SELECT sales WHERE region = 'US'"
+
+    - name: Build playground
+      run: |
+        cd playground
+        make clean
+        make
+
+    - name: Test playground
+      run: |
+        cd playground
+        ./ipc_scan
+
+    - name: Verify compile_commands.json
+      run: |
+        test -f build/compile_commands.json
+        echo "compile_commands.json generated successfully"
+
+  # Additional job for Windows (optional)
+  test-windows:
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install dependencies (Windows)
+      run: |
+        # Install vcpkg and Arrow
+        git clone https://github.com/Microsoft/vcpkg.git
+        cd vcpkg
+        ./bootstrap-vcpkg.bat
+        ./vcpkg install arrow:x64-windows
+        echo "$env:VCPKG_ROOT" >> $env:GITHUB_ENV
+        echo "$env:VCPKG_ROOT/installed/x64-windows/tools/arrow" >> $env:GITHUB_PATH
+
+    - name: Generate test data (Windows)
+      run: |
+        cd data
+        pip install pyarrow
+        python generate_arrow_data.py
+
+    - name: Build main project (Windows)
+      run: |
+        mkdir build
+        cd build
+        cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" ..
+        cmake --build . --config Release
+
+    - name: Test main project (Windows)
+      run: |
+        cd build
+        ./Release/neutrino.exe ../data/transactions.arrow "SELECT sales WHERE region = 'US'"
+
+  # Code quality checks
+  lint:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install clang-format
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y clang-format
+
+    - name: Check code formatting
+      run: |
+        # Check if all C++ files are properly formatted
+        find . -name "*.cpp" -o -name "*.h" | grep -v build | xargs clang-format --dry-run --Werror
+
+    - name: Check CMakeLists.txt syntax
+      run: |
+        cmake --version
+        # This will fail if CMakeLists.txt has syntax errors
+        cmake -S . -B build-check
+
+  # Documentation check
+  docs:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Check README
+      run: |
+        # Verify README exists and has content
+        test -f README.md
+        test -s README.md
+        echo "README.md is valid"
+
+    - name: Check CMakeLists.txt
+      run: |
+        # Verify CMakeLists.txt exists and has content
+        test -f CMakeLists.txt
+        test -s CMakeLists.txt
+        echo "CMakeLists.txt is valid" 

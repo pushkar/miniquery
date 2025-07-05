@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 3.15)
 project(miniquery)
 
+# Enable compile commands JSON generation for language servers
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 set(CMAKE_CXX_STANDARD 17)
 
 file(GLOB SRC_FILES src/*.cpp)

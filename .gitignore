@@ -39,3 +39,16 @@
 
 # debug information files
 *.dwo
+
+# cmake
+build/
+
+# vscode
+.vscode/
+
+# python
+__pycache__/
+venv/
+
+# data
+*.arrow

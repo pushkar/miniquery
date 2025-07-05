@@ -1,0 +1,46 @@
+name: Quick Test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential cmake pkg-config
+        # Install Arrow via conda
+        wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh
+        bash miniconda.sh -b -p $HOME/miniconda
+        echo "$HOME/miniconda/bin" >> $GITHUB_PATH
+        conda install -c conda-forge arrow-cpp
+
+    - name: Generate test data
+      run: |
+        cd data
+        pip install pyarrow
+        python generate_arrow_data.py
+
+    - name: Build and test main project
+      run: |
+        mkdir -p build
+        cd build
+        cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=ON ..
+        make -j$(nproc)
+        ./neutrino ../data/transactions.arrow "SELECT sales WHERE region = 'US'"
+
+    - name: Build and test playground
+      run: |
+        cd playground
+        make clean
+        make
+        ./ipc_scan 
